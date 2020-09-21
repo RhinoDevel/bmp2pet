@@ -151,7 +151,7 @@ static unsigned char * load(char const * const inFilePath, int * const inOutWidt
 	
 	uint32_t const absHeight = abs(infoHeader.height);
 
-    if(absHeight > 0)
+    if(infoHeader.height < 0)
     {
         flipVertically(imgData, infoHeader.width, absHeight);
     }

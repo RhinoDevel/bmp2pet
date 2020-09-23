@@ -10,34 +10,6 @@
 #include "FileSys.h"
 #include "Bmp.h"
 
-/** CBM/PET PETSCII "big pixel" characters.
- *
- *  Ordered from first quadrant at top-right to fourth (clockwise).
- *
- *  3|0
- *  -+-
- *  2|1
- */
-static char const pet_val[16] = {
-	         // 3 2 1 0 <= Quadrants of "sub characters" / "big pixels".
-		32,  // 0 0 0 1
-		124, // 0 0 1 0
-		108, // 0 0 1 1
-		225, // ...
-		123,
-		255,
-		98,
-		254,
-		126,
-		226,
-		127,
-		251,
-		97,
-		236,
-		252,
-		224
-	};
-
 static inline bool is_background(unsigned char const * const pix_ptr)
 {
 	return pix_ptr[0] == 0 && pix_ptr[1] == 0 && pix_ptr[2] == 0;
@@ -95,8 +67,39 @@ static unsigned char * create_petscii(
 {
 	assert(out_len != NULL);
 	
+	static int const channel_count = 3;
+	
+	/** CBM/PET PETSCII "big pixel" characters.
+	 *
+	 *  Ordered from first quadrant at top-right to fourth (clockwise).
+	 *
+	 *  3|0
+	 *  -+-
+	 *  2|1
+	 */
+	static unsigned char const pet_val[16] = {
+	         // 3 2 1 0 <= Quadrants of "sub characters" / "big pixels".
+		32,  // 0 0 0 0
+		124, // 0 0 0 1
+		108, // 0 0 1 0
+		225, // ...
+		123,
+		255,
+		98,
+		254,
+		126,
+		226, // 1 0 0 1
+		127,
+		251,
+		97,
+		236,
+		252,
+		224
+	};
+	
 	int const out_width = (bmp->d.w + bmp->d.w % 2) / 2,
-			out_height = (bmp->d.h + bmp->d.h % 2) / 2;
+			out_height = (bmp->d.h + bmp->d.h % 2) / 2,
+			channel_width = channel_count * bmp->d.w;
 			
 	Deb_line(
 		"Info: output character width = %d, height = %d.",
@@ -107,8 +110,65 @@ static unsigned char * create_petscii(
 		
 	unsigned char * const ret_val = malloc(*out_len);
 	
-	// TODO: Implement!
-	
+	for(int out_row = 0;out_row < out_height;++out_row)
+	{
+		unsigned char * const out_row_ptr = ret_val + out_row * out_width;
+		
+		for(int out_col = 0;out_col < out_width;++out_col)
+		{
+			int const sector_3_0_row = 2 * out_row,
+					sector_3_2_col = 2 * out_col,
+					sector_2_1_row = sector_3_0_row + 1,
+					sector_0_1_col = sector_3_2_col + 1;
+			unsigned char const * const sector_3_ptr =
+					bmp->p + sector_3_0_row * channel_width
+						+ channel_count * sector_3_2_col,
+				* const sector_2_ptr = sector_3_ptr + channel_width;
+			unsigned char * const out_col_ptr = out_row_ptr + out_col;
+			unsigned char pet_index = 0;
+			bool const sector_2_1_row_exists = sector_2_1_row < bmp->d.h;
+			
+			// 3|0
+			// -+-
+			// 2|1
+			
+			// Sector 3:
+			//
+			if(!is_background(sector_3_ptr))
+			{				
+				pet_index |= 8;
+			}
+			
+			// Sector 2:
+			//
+			if(sector_2_1_row_exists && !is_background(sector_2_ptr))
+			{
+				pet_index |= 4;
+			}
+			
+			if(sector_0_1_col < bmp->d.w)
+			{
+				// Sector 1:
+				//
+				if(sector_2_1_row_exists
+					&& !is_background(sector_2_ptr + channel_count))
+				{
+					pet_index |= 2;
+				}
+				
+				// Sector 0:
+				//
+				if(!is_background(sector_3_ptr + channel_count))
+				{
+					pet_index |= 1;
+				}
+			}
+			
+			assert(pet_index >= 0 && pet_index < 16);
+			
+			*out_col_ptr = pet_val[(int)pet_index];
+		}
+	}
 	return ret_val;
 }
 

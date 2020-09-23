@@ -10,6 +10,34 @@
 #include "FileSys.h"
 #include "Bmp.h"
 
+/** CBM/PET PETSCII "big pixel" characters.
+ *
+ *  Ordered from first quadrant at top-right to fourth (clockwise).
+ *
+ *  3|0
+ *  -+-
+ *  2|1
+ */
+static char const pet_val[16] = {
+	         // 3 2 1 0 <= Quadrants of "sub characters" / "big pixels".
+		32,  // 0 0 0 1
+		124, // 0 0 1 0
+		108, // 0 0 1 1
+		225, // ...
+		123,
+		255,
+		98,
+		254,
+		126,
+		226,
+		127,
+		251,
+		97,
+		236,
+		252,
+		224
+	};
+
 static inline bool is_background(unsigned char const * const pix_ptr)
 {
 	return pix_ptr[0] == 0 && pix_ptr[1] == 0 && pix_ptr[2] == 0;
@@ -59,8 +87,35 @@ static void print_bmp_monochrome(struct Bmp const * const b)
 	}
 }
 
+/**
+ * - Caller takes ownership of returned object.
+ */
+static unsigned char * create_petscii(
+	struct Bmp const * const bmp, int * const out_len)
+{
+	assert(out_len != NULL);
+	
+	int const out_width = (bmp->d.w + bmp->d.w % 2) / 2,
+			out_height = (bmp->d.h + bmp->d.h % 2) / 2;
+			
+	Deb_line(
+		"Info: output character width = %d, height = %d.",
+		out_width,
+		out_height)
+		
+	*out_len = out_width * out_height;
+		
+	unsigned char * const ret_val = malloc(*out_len);
+	
+	// TODO: Implement!
+	
+	return ret_val;
+}
+
 int main(int argc, char* argv[])
 {
+	int len = -1;
+	
     if(argc != 3)
     {
         Deb_line(
@@ -80,9 +135,16 @@ int main(int argc, char* argv[])
         true, true, "Bitmap resolution = %d x %d pixels.", bmp->d.w, bmp->d.h);
         
 	print_bmp_monochrome(bmp);
-		
-	// TODO: Implement!
+	
+	unsigned char * const petscii = create_petscii(bmp, &len);
+	
+	if(!FileSys_saveFile(argv[2], (size_t)len, petscii))
+	{
+		Deb_line("Error: Failed to save PETSCII to file!")
+		return 3;
+	}
 		
     Bmp_delete(bmp);
+	free(petscii);
     return 0;
 }

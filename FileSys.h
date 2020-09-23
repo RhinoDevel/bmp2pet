@@ -20,6 +20,15 @@ off_t FileSys_GetFileSize(char const * const inPath);
 unsigned char * FileSys_loadFile(
     char const * const inPath, off_t * const inOutSize);
 
+/**
+ *  - Return, if successful.
+ *  - Does NOT take ownership of given object.
+ */
+bool FileSys_saveFile(
+	char const * const path,
+	size_t const size,
+	unsigned char const * const bytes);
+
 #ifdef __cplusplus
 }
 #endif

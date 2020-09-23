@@ -57,3 +57,29 @@ unsigned char * FileSys_loadFile(
     *inOutSize = signed_size;
     return buf;
 }
+
+bool FileSys_saveFile(
+	char const * const path,
+	size_t const size,
+	unsigned char const * const bytes)
+{
+    assert(path != NULL);
+    assert(bytes != NULL);
+
+    FILE * const file = fopen(path, "wb");
+
+	if(file == NULL)
+    {
+        Deb_line("Error: Failed to open destination file \"%s\"!", path)
+        return false;
+    }
+
+    if(fwrite(bytes, 1, size, file) != size)
+	{
+        Deb_line("Error: Failed to completely save bytes to file!")
+        return false;
+    }
+	
+    fclose(file);
+	return true;
+}
